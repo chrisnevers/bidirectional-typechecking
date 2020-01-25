@@ -1,6 +1,7 @@
 include Ident
 include Type
 include Context
+include Token
 
 module Exp = struct
   type t =
@@ -8,18 +9,23 @@ module Exp = struct
   | Unit
   | Int of int
   | Bool of bool
+  | String of string
   | Abs of Ident.t * t
   | App of t * t
   | HasType of t * Type.t
+  | Clos of (t -> t)
 
   let rec show = function
   | Var id -> Ident.show id
   | Unit -> "()"
   | Int i -> string_of_int i
-  | Bool b -> string_of_bool b
-  | Abs (id, e) -> Format.sprintf "λ %s . %s" (Ident.show id) (show e)
-  | App (l, r) -> Format.sprintf "%s %s" (show l) (show r)
+  | String s -> s
+  | Bool true -> "True"
+  | Bool false -> "False"
+  | Abs (id, e) -> Format.sprintf "(λ %s . %s)" (Ident.show id) (show e)
+  | App (l, r) -> Format.sprintf "(%s %s)" (show l) (show r)
   | HasType (e, ty) -> Format.sprintf "%s : %s" (show e) (Type.show ty)
+  | Clos _ -> "<closure>"
 
 end
 

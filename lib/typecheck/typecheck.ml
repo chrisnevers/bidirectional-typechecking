@@ -4,7 +4,7 @@ open Gensym
 let rec is_well_formed ctx ty =
   let open Type in
   match ty with
-  | TyUnit | TyInt | TyBool -> true
+  | TyUnit | TyInt | TyBool | TyString -> true
   | TyVar id -> Context.has_variable id ctx
   | TyFun (l, r) -> is_well_formed ctx l && is_well_formed ctx r
   | TyForAll (id, t) -> is_well_formed (Context.VarDecl id :: ctx) t
@@ -17,7 +17,7 @@ let error msg = raise (TypecheckError msg)
 let rec occurs_in alpha ty =
   let open Type in
   match ty with
-  | TyUnit | TyInt | TyBool -> false
+  | TyUnit | TyInt | TyBool | TyString -> false
   | TyVar id -> id = alpha
   | TyFun (l, r) -> occurs_in alpha l || occurs_in alpha r
   | TyForAll (id, t) -> id = alpha || occurs_in alpha t
@@ -29,6 +29,7 @@ let rec substitution a alpha b =
   | TyUnit -> TyUnit
   | TyInt -> TyInt
   | TyBool -> TyBool
+  | TyString -> TyString
   | TyVar id when id = alpha -> b
   | TyVar _ -> a
   | TyForAll (id, _) when id = alpha -> TyForAll (id, b)
@@ -40,7 +41,7 @@ let rec substitution a alpha b =
 let rec apply_context a ctx =
   let open Type in
   match a with
-  | TyUnit | TyInt | TyBool | TyVar _ -> a
+  | TyUnit | TyInt | TyBool | TyVar _ | TyString -> a
   | TyExist alpha ->
     let tau = Context.get_solved alpha ctx in
     begin match tau with
@@ -57,7 +58,8 @@ let rec check_against ctx exp ty =
   match exp, ty with
   | Unit, TyUnit
   | Int _, TyInt
-  | Bool _, TyBool -> ctx
+  | Bool _, TyBool
+  | String _, TyString -> ctx
   | Abs (x, e), TyFun (l, r) ->
     let typed_var = Context.TypedVar (x, l) in
     let ctx' = typed_var :: ctx in
@@ -77,7 +79,8 @@ and subtype ctx a b =
   match a, b with
   | TyUnit, TyUnit
   | TyInt, TyInt
-  | TyBool, TyBool -> ctx
+  | TyBool, TyBool
+  | TyString, TyString -> ctx
   | TyVar alpha1, TyVar alpha2 when is_well_formed ctx a && alpha1 = alpha2 -> ctx
   | TyExist exist1, TyExist exist2 when exist1 = exist2 && is_well_formed ctx a -> ctx
   | TyFun (a1, a2), TyFun (b1, b2) ->
@@ -95,7 +98,8 @@ and subtype ctx a b =
     drop (VarDecl alpha) delta
   | TyExist alpha, _ when occurs_in alpha b |> not -> instantiate_l ctx alpha b
   | _, TyExist alpha when occurs_in alpha a |> not -> instantiate_r ctx a alpha
-  | _ -> "subtype: fail" |> error
+  | l, r -> Format.sprintf "Expected type %s ≤ %s" (Type.show l) (Type.show r)
+            |> error
 
 and synthesizes_to ctx exp =
   let open Type in
@@ -103,6 +107,7 @@ and synthesizes_to ctx exp =
   | Unit -> TyUnit, ctx
   | Int _ -> TyInt, ctx
   | Bool _ -> TyBool, ctx
+  | String _ -> TyString, ctx
   | Var id -> begin
     match Context.get_annotation id ctx with
     | Some t -> t, ctx
@@ -196,7 +201,11 @@ and instantiate_r ctx ty alpha =
   | _ -> ctx
 
 let synth exp =
-  let t, c = synthesizes_to [] exp in
+  let id = Ident.ident "α" in
+  let t, c = synthesizes_to [
+    TypedVar (Ident.ident "add", TyForAll (id, TyFun (TyVar id, TyFun (TyVar id, TyVar id))));
+    TypedVar (Ident.ident "show", TyForAll (id, TyFun (TyVar id, TyString)));
+  ] exp in
   apply_context t c
 
 let%test "unit" =

@@ -6,6 +6,7 @@ module Type = struct
   | TyUnit
   | TyInt
   | TyBool
+  | TyString
   (* Referred to as α *)
   | TyVar of Ident.t
   | TyExist of Ident.t
@@ -18,6 +19,7 @@ module Type = struct
   | TyUnit -> "()"
   | TyInt -> "Int"
   | TyBool -> "Bool"
+  | TyString -> "String"
   | TyVar id -> "'" ^ Ident.show id
   | TyExist id -> "∃'" ^ Ident.show id
   | TyForAll (id, t) -> Format.sprintf "∀%s. %s" (Ident.show id) (show t)

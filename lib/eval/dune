@@ -1,0 +1,6 @@
+(library
+  (inline_tests)
+  (name eval)
+  (libraries ast stdlibrary)
+  (preprocess
+    (pps ppx_inline_test)))
