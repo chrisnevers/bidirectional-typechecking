@@ -7,7 +7,11 @@ let error msg = raise (EvalError ("Eval Error: " ^ msg))
 let default_env =
   let env = Hashtbl.create 10 in
   Hashtbl.add env (Ident.ident "add") std_add;
+  Hashtbl.add env (Ident.ident "sub") std_sub;
+  Hashtbl.add env (Ident.ident "mul") std_mul;
+  Hashtbl.add env (Ident.ident "div") std_div;
   Hashtbl.add env (Ident.ident "show") std_show;
+  Hashtbl.add env (Ident.ident "eq") std_eq;
   env
 
 let rec eval_exp env exp =

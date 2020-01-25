@@ -15,6 +15,11 @@ let lex_file filename =
   let tokens = lex token buf in
   tokens
 
+let lex_string s =
+  let buf  = Lexing.from_string s in
+  let tokens = lex token buf in
+  tokens
+
 type indent =
   | SameLine of Pos.t
   | NextLineEqCol of Pos.t
@@ -65,6 +70,8 @@ let mt = Pos.Pos (0, 0)
 
 let rec curry_app hd e =
   let open Exp in
+  print_endline @@ "hd: " ^ Exp.show hd;
+  print_endline @@ "e: " ^ Exp.show e;
   match e with
   | App (l, r) -> App (curry_app hd l, r)
   | ow -> App (hd, ow)
@@ -88,7 +95,7 @@ let rec parse_exp_0_head tokens indent =
   | TVAR i  when compare_indent pos indent -> Exp.Var (Ident.ident i), pos
   | TSTRING s when compare_indent pos indent -> Exp.String s, pos
   | TLPAREN when compare_indent pos indent ->
-    let e = parse_exp tokens indent in
+    let e = parse_exp tokens (SameLineOrGt pos) in
     let _ = expect_token TRPAREN tokens in
     e, pos
   | _ -> Format.sprintf "Expected an int, variable, or (, but received %s (at %s)"
@@ -101,16 +108,20 @@ and parse_exp_0 tokens indent =
   (* Apply *)
   | TINT _ | TVAR _ | TLPAREN
   | TBOOL _ when compare_indent pos (SameLine l_pos) ->
-    let tl = parse_exp_0 tokens (SameLine l_pos) in curry_app hd tl
+    let tl = parse_exp_0 tokens (SameLine l_pos) in
+    begin match tl with
+    | Exp.App (l, r) -> FApp (hd :: l :: r :: [])
+    | _ -> Exp.App (hd, tl)
+    end
   | _ -> hd
 
-and parse_args tokens indent =
+and parse_args tokens indent delim =
   let HasPos (tok, pos) = peek_token tokens in
   match tok with
   | TVAR id when compare_indent pos indent  ->
     consume_token tokens;
-    Ident.ident id :: parse_args tokens indent
-  | TARROW -> []
+    Ident.ident id :: parse_args tokens indent delim
+  | t when t = delim -> []
   | _ -> "Error parsing function arguments. Expected identifiers." |> error
 
 and parse_exp_1 tokens indent =
@@ -118,7 +129,7 @@ and parse_exp_1 tokens indent =
   match tok with
   | TFUN when compare_indent pos indent ->
     consume_token tokens;
-    let args = parse_args tokens (SameLine pos) in
+    let args = parse_args tokens (SameLine pos) TARROW in
     expect_token TARROW tokens;
     let e = parse_exp tokens (SameLineOrGt pos) in
     curry_abs e args
@@ -129,12 +140,43 @@ and parse_exp tokens indent =
   match tok with
   | TLET when compare_indent pos indent ->
     consume_token tokens;
-    let id = parse_id tokens (SameLine pos) in
+    let ids = parse_args tokens (SameLine pos) TEQ in
     expect_token TEQ tokens;
-    let e = parse_exp tokens (SameLine pos) in
+    let id = List.hd ids in
+    let args = List.tl ids in
+    let e_indent = if List.length ids > 1 then (SameLineOrGt pos) else (SameLine pos) in
+    let e = parse_exp tokens e_indent in
     let b = parse_exp tokens (NextLineEqCol pos) in
-    App (Abs (id, b), e)
+    let res = List.fold_left (fun acc id -> Exp.Abs (id, acc)) e args in
+    App (Abs (id, b), res)
   | _ -> parse_exp_1 tokens indent
 
+let rec curry exp =
+  let open Exp in
+  match exp with
+  | FApp es -> curry @@ List.fold_left (fun e acc -> App (e, acc)) (List.hd es) (List.tl es)
+  | App (l, r) -> App (curry l, curry r)
+  | Abs (id, e) -> Abs (id, curry e)
+  | HasType (e, t) -> HasType (curry e, t)
+  | _ -> exp
+
 let parse_tokens tokens =
-  parse_exp (ref tokens) Any
+  curry @@ parse_exp (ref tokens) Any
+
+open Gensym
+
+let test s =
+  Gensym.reset();
+  lex_string s |> parse_tokens
+
+let%test "parse id" =test "a" = Exp.Var ("a", 0)
+let%test "parse False" = test "False" = Exp.Bool false
+let%test "parse True" = test "True" = Exp.Bool true
+let%test "parse Int" = test "52" = Exp.Int 52
+let%test "parse Paren" = test "(True)" = Exp.Bool true
+let%test "parse apply" = test "add 1 2" = Exp.App (Exp.App (Exp.Var ("add", 0), Exp.Int 1), Exp.Int 2)
+let%test "parse let" = test "let five = 5\nfive" = Exp.App (Exp.Abs (("five", 0), Exp.Var ("five", 0)), Exp.Int 5)
+let%test "parse let" = test "let id x = x\nid" =
+  let id = Ident.ident "id" in
+  let x = Ident.ident "x" in
+  Exp.App (Exp.Abs (id, Exp.Var id), Abs (x, Exp.Var x))

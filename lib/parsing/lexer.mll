@@ -9,7 +9,7 @@
     Pos (line, col)
 }
 
-let id_start = ['a'-'z']
+let id_start = ['a'-'z''_']
 let id_rest  = ['a'-'z''A'-'Z''/''*''-''_'''''0'-'9']
 let id_regex = id_start id_rest*
 

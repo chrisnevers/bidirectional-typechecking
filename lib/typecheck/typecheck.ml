@@ -204,7 +204,11 @@ let synth exp =
   let id = Ident.ident "α" in
   let t, c = synthesizes_to [
     TypedVar (Ident.ident "add", TyForAll (id, TyFun (TyVar id, TyFun (TyVar id, TyVar id))));
+    TypedVar (Ident.ident "sub", TyFun (TyInt, TyFun (TyInt, TyInt)));
+    TypedVar (Ident.ident "mul", TyFun (TyInt, TyFun (TyInt, TyInt)));
+    TypedVar (Ident.ident "div", TyFun (TyInt, TyFun (TyInt, TyInt)));
     TypedVar (Ident.ident "show", TyForAll (id, TyFun (TyVar id, TyString)));
+    TypedVar (Ident.ident "eq", TyForAll (id, TyFun (TyVar id, TyFun (TyVar id, TyBool))));
   ] exp in
   apply_context t c
 

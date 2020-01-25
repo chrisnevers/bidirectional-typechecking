@@ -1,6 +1,9 @@
 (library
   (name parsing)
-  (libraries ast))
+  (libraries ast)
+  (inline_tests)
+  (preprocess
+    (pps ppx_inline_test)))
 
 (ocamllex
   (modules lexer))
