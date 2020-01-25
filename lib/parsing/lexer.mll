@@ -24,6 +24,8 @@ rule token = parse
   | "->"      { HasPos (TARROW, pos lexbuf) }
   | "let"     { HasPos (TLET, pos lexbuf) }
   | '='       { HasPos (TEQ, pos lexbuf) }
+  | "if"      { HasPos (TIF, pos lexbuf) }
+  | "else"    { HasPos (TELSE, pos lexbuf) }
   | "True"    { HasPos (TBOOL true, pos lexbuf) }
   | "False"   { HasPos (TBOOL false, pos lexbuf) }
   | id_regex as id

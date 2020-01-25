@@ -14,6 +14,8 @@ module Exp = struct
   | App of t * t
   | FApp of t list
   | HasType of t * Type.t
+  | If of t * t * t
+  | Let of Ident.t * t * t
   | Clos of (t -> t)
 
   let rec show = function
@@ -27,6 +29,8 @@ module Exp = struct
   | App (l, r) -> Format.sprintf "(%s %s)" (show l) (show r)
   | FApp es -> Format.sprintf "(%s)" (String.concat ", " (List.map show es))
   | HasType (e, ty) -> Format.sprintf "%s : %s" (show e) (Type.show ty)
+  | If (cnd, thn, els) -> Format.sprintf "if %s then %s else %s" (show cnd) (show thn) (show els)
+  | Let _ -> "let"
   | Clos _ -> "<closure>"
 
 end

@@ -25,6 +25,13 @@ let rec eval_exp env exp =
     let l' = eval_exp env l in
     let r' = eval_exp env r in
     eval_fun env l' r'
+  | Exp.If (c, t, e) ->
+    begin
+      match eval_exp env c with
+      | Bool true -> eval_exp env t
+      | Bool false -> eval_exp env e
+      | _ -> "Fatal: eval if" |> error
+    end
   | _ -> "Unknown exp: " ^ Exp.show exp |> error
 
 and eval_fun env fn arg =

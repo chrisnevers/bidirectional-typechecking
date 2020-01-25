@@ -113,6 +113,16 @@ and synthesizes_to ctx exp =
     | Some t -> t, ctx
     | None -> Format.sprintf "synthesizes_to: %s not in context" (Ident.show id) |> error
     end
+  | If (c, t, e) ->
+    let ctx' = check_against ctx c TyBool in
+    let c', ctx' = synthesizes_to ctx' c in
+    let t', ctx' = synthesizes_to ctx' t in
+    let e', ctx' = synthesizes_to ctx' e in
+    if apply_context c' ctx != TyBool then
+      "Expected if condition to be of type Bool, but received: " ^ show (apply_context c' ctx) ^ " in " ^ Context.show ctx' |> error;
+    if t' != e' then
+      "Expected if expression to have same type for if and else branch" |> error;
+    t', ctx'
   | HasType (e, t) when is_well_formed ctx t ->
     let delta = check_against ctx e t in
     t, delta
@@ -127,7 +137,7 @@ and synthesizes_to ctx exp =
   | App (l, r) ->
     let a, theta = synthesizes_to ctx l in
     application_synthesizes_to theta (apply_context a theta) r
-  | _ -> "synthesizes_to: fail" |> error
+  | _ -> "synthesizes_to: fail: " ^ (Exp.show exp) |> error
 
 and application_synthesizes_to ctx ty exp =
   let open Type in

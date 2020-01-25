@@ -22,6 +22,7 @@ let lex_string s =
 
 type indent =
   | SameLine of Pos.t
+  | NextLine of Pos.t
   | NextLineEqCol of Pos.t
   | NextLineGtCol of Pos.t
   | SameLineOrGt  of Pos.t
@@ -29,6 +30,7 @@ type indent =
 
 let show_indent = function
   | SameLine p -> "SameLine " ^ Pos.show p
+  | NextLine p -> "NextLine " ^ Pos.show p
   | NextLineEqCol p -> "NextLineEqCol " ^ Pos.show p
   | NextLineGtCol p -> "NextLineGtCol " ^ Pos.show p
   | SameLineOrGt p -> "SameLineOrGt " ^ Pos.show p
@@ -38,6 +40,7 @@ let compare_indent actual expected =
   let Pos (new_line, new_col) = actual in
   match expected with
   | SameLine (Pos (last_line, _)) -> new_line = last_line
+  | NextLine (Pos (last_line, _)) -> new_line > last_line
   | NextLineEqCol (Pos (last_line, last_col)) -> new_line > last_line && new_col = last_col
   | NextLineGtCol (Pos (last_line, last_col)) -> new_line > last_line && new_col > last_col
   | SameLineOrGt (Pos (last_line, last_col)) -> new_line = last_line || new_col > last_col
@@ -58,23 +61,16 @@ let next_token tokens =
 let peek_token tokens =
   List.hd !tokens
 
-let expect_token expected tokens =
+let expect_token expected tokens indent =
   let actual = next_token tokens in
-  let HasPos (actual_tok, _) = actual in
+  let HasPos (actual_tok, pos) = actual in
   if actual_tok <> expected then
     Format.sprintf "Expected %s but received %s"
     (show expected) (show actual_tok) |> error;
+  if compare_indent pos indent |> not then
+    Format.sprintf "Expected %s to be indented %s, but received %s"
+    (show actual_tok) (show_indent indent) (Pos.show pos) |> error;
   ()
-
-let mt = Pos.Pos (0, 0)
-
-let rec curry_app hd e =
-  let open Exp in
-  print_endline @@ "hd: " ^ Exp.show hd;
-  print_endline @@ "e: " ^ Exp.show e;
-  match e with
-  | App (l, r) -> App (curry_app hd l, r)
-  | ow -> App (hd, ow)
 
 let rec curry_abs e = function
   | [] -> e
@@ -96,9 +92,10 @@ let rec parse_exp_0_head tokens indent =
   | TSTRING s when compare_indent pos indent -> Exp.String s, pos
   | TLPAREN when compare_indent pos indent ->
     let e = parse_exp tokens (SameLineOrGt pos) in
-    let _ = expect_token TRPAREN tokens in
+    let _ = expect_token TRPAREN tokens Any in
     e, pos
   | _ -> Format.sprintf "Expected an int, variable, or (, but received %s (at %s)"
+
         (show tok) (show_indent indent) |> error
 
 and parse_exp_0 tokens indent =
@@ -130,10 +127,22 @@ and parse_exp_1 tokens indent =
   | TFUN when compare_indent pos indent ->
     consume_token tokens;
     let args = parse_args tokens (SameLine pos) TARROW in
-    expect_token TARROW tokens;
+    expect_token TARROW tokens (SameLine pos);
     let e = parse_exp tokens (SameLineOrGt pos) in
     curry_abs e args
   | _ -> parse_exp_0 tokens indent
+
+and parse_exp_2 tokens indent =
+    let HasPos (tok, pos) = peek_token tokens in
+    match tok with
+    | TIF when compare_indent pos indent ->
+      consume_token tokens;
+      let cnd = parse_exp tokens (SameLine pos) in
+      let thn = parse_exp tokens (NextLineGtCol pos) in
+      expect_token TELSE tokens (NextLineEqCol pos);
+      let els = parse_exp tokens (NextLineGtCol pos) in
+      Exp.If (cnd, thn, els)
+    | _ -> parse_exp_1 tokens indent
 
 and parse_exp tokens indent =
   let HasPos (tok, pos) = peek_token tokens in
@@ -141,15 +150,16 @@ and parse_exp tokens indent =
   | TLET when compare_indent pos indent ->
     consume_token tokens;
     let ids = parse_args tokens (SameLine pos) TEQ in
-    expect_token TEQ tokens;
+    expect_token TEQ tokens (SameLine pos);
     let id = List.hd ids in
     let args = List.tl ids in
     let e_indent = if List.length ids > 1 then (SameLineOrGt pos) else (SameLine pos) in
     let e = parse_exp tokens e_indent in
     let b = parse_exp tokens (NextLineEqCol pos) in
     let res = List.fold_left (fun acc id -> Exp.Abs (id, acc)) e args in
+    (* Exp.Let (id, res, b) *)
     App (Abs (id, b), res)
-  | _ -> parse_exp_1 tokens indent
+  | _ -> parse_exp_2 tokens indent
 
 let rec curry exp =
   let open Exp in
@@ -158,7 +168,14 @@ let rec curry exp =
   | App (l, r) -> App (curry l, curry r)
   | Abs (id, e) -> Abs (id, curry e)
   | HasType (e, t) -> HasType (curry e, t)
-  | _ -> exp
+  | If (c, t, e) -> If (curry c, curry t, curry e)
+  | Let (id, e, b) -> Let (id, curry e, curry b)
+  | Int i -> Int i
+  | Bool b -> Bool b
+  | String s -> String s
+  | Var id -> Var id
+  | Unit -> Unit
+  | Clos f -> Clos f
 
 let parse_tokens tokens =
   curry @@ parse_exp (ref tokens) Any
