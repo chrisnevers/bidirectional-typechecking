@@ -29,7 +29,8 @@ rule token = parse
   | "else"    { HasPos (TELSE, pos lexbuf) }
   | "True"    { HasPos (TBOOL true, pos lexbuf) }
   | "False"   { HasPos (TBOOL false, pos lexbuf) }
-  | ","       { HasPos (TCOMMA, pos lexbuf) }
+  | ','       { HasPos (TCOMMA, pos lexbuf) }
+  | '$'       { HasPos (TDOLLAR, pos lexbuf) }
   | id_regex as id
               { HasPos (TVAR id, pos lexbuf) }
   | int_regex as i

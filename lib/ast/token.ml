@@ -26,6 +26,7 @@ module Token = struct
     | TELSE
     | TCOMMA
     | TREC
+    | TDOLLAR
     | TEOF
 
   type t_pos =
@@ -46,6 +47,7 @@ module Token = struct
   | TELSE -> "TELSE"
   | TCOMMA -> "TCOMMA"
   | TREC -> "TREC"
+  | TDOLLAR -> "TDOLLAR"
   | TEOF -> "TEOF"
 
   let show_t_pos = function

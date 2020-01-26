@@ -102,6 +102,9 @@ let rec parse_exp_0_head tokens indent =
     let e = parse_exp tokens (SameLineOrGt pos) in
     let _ = expect_token TRPAREN tokens Any in
     e, pos
+  | TDOLLAR when compare_indent pos indent ->
+    let e = parse_exp tokens (SameLineOrGt pos) in
+    e, pos
   | _ -> Format.sprintf "Expected an int, variable, or (, but received %s (at %s)"
 
         (show tok) (show_indent indent) |> error
@@ -111,11 +114,11 @@ and parse_exp_0 tokens indent =
   let HasPos (tok, pos) = peek_token tokens in
   match tok with
   (* Apply *)
-  | TINT _ | TVAR _
-  | TBOOL _ when compare_indent pos (SameLine l_pos) ->
+  | TINT _ | TVAR _ | TBOOL _
+    when compare_indent pos (SameLine l_pos) ->
     let tl = parse_exp_0 tokens (SameLine l_pos) in
     insert hd tl
-  | TLPAREN when compare_indent pos (SameLine l_pos) ->
+  | TDOLLAR | TLPAREN when compare_indent pos (SameLine l_pos) ->
     let tl = parse_exp_0 tokens (SameLine l_pos) in
     App (hd, tl)
   | _ -> hd
@@ -141,16 +144,16 @@ and parse_exp_1 tokens indent =
   | _ -> parse_exp_0 tokens indent
 
 and parse_exp_2 tokens indent =
-    let HasPos (tok, pos) = peek_token tokens in
-    match tok with
-    | TIF when compare_indent pos indent ->
-      consume_token tokens;
-      let cnd = parse_exp tokens (SameLine pos) in
-      let thn = parse_exp tokens (NextLineGtCol pos) in
-      expect_token TELSE tokens (NextLineEqCol pos);
-      let els = parse_exp tokens (NextLineGtCol pos) in
-      Exp.If (cnd, thn, els)
-    | _ -> parse_exp_1 tokens indent
+  let HasPos (tok, pos) = peek_token tokens in
+  match tok with
+  | TIF when compare_indent pos indent ->
+    consume_token tokens;
+    let cnd = parse_exp tokens (SameLine pos) in
+    let thn = parse_exp tokens (NextLineGtCol pos) in
+    expect_token TELSE tokens (NextLineEqCol pos);
+    let els = parse_exp tokens (NextLineGtCol pos) in
+    Exp.If (cnd, thn, els)
+  | _ -> parse_exp_1 tokens indent
 
 and parse_exp tokens indent =
   let HasPos (tok, pos) = peek_token tokens in
