@@ -30,3 +30,4 @@ setup.log
 _opam/
 notes
 *DS_Store
+.ionide/
