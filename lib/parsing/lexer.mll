@@ -18,6 +18,7 @@ let int_regex = ['0'-'9']+
 rule token = parse
   | '\n'      { Lexing.new_line lexbuf; token lexbuf }
   | [' ''\t'] { token lexbuf }
+  | "()"      { HasPos (TUNIT, pos lexbuf) }
   | '('       { HasPos (TLPAREN, pos lexbuf) }
   | ')'       { HasPos (TRPAREN, pos lexbuf) }
   | "fun"     { HasPos (TFUN, pos lexbuf) }

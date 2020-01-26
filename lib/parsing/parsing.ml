@@ -95,6 +95,7 @@ let rec parse_exp_0_head tokens indent =
   let HasPos (tok, pos) = next in
   match tok with
   | TINT i  when compare_indent pos indent -> Exp.Int i, pos
+  | TUNIT  when compare_indent pos indent -> Exp.Unit, pos
   | TBOOL b when compare_indent pos indent -> Exp.Bool b, pos
   | TVAR i  when compare_indent pos indent -> Exp.Var (Ident.ident i), pos
   | TSTRING s when compare_indent pos indent -> Exp.String s, pos

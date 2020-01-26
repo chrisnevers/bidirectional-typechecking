@@ -19,6 +19,7 @@ let show_env env =
 let rec eval_exp env exp =
   let _rec =  eval_exp env in
   match exp with
+  | Exp.Unit -> Exp.Unit
   | Exp.Int i -> Exp.Int i
   | Exp.Bool b -> Exp.Bool b
   | Exp.String s -> Exp.String s

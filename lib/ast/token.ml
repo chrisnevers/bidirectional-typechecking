@@ -16,6 +16,7 @@ module Token = struct
     | TINT of int
     | TBOOL of bool
     | TSTRING of string
+    | TUNIT
     | TLPAREN
     | TRPAREN
     | TFUN
@@ -41,6 +42,7 @@ module Token = struct
   | TINT i -> Format.sprintf "TINT %s" (string_of_int i)
   | TBOOL b -> Format.sprintf "TBOOL %s" (string_of_bool b)
   | TSTRING s -> Format.sprintf "TSTRING %s" s
+  | TUNIT -> "TUNIT"
   | TLPAREN -> "TLPAREN"
   | TRPAREN -> "TRPAREN"
   | TFUN -> "TFUN"
