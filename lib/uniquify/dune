@@ -1,0 +1,6 @@
+(library
+ (inline_tests)
+ (name uniquify)
+ (libraries ast gensym)
+ (preprocess
+  (pps ppx_inline_test)))
