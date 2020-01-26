@@ -1,1 +1,3 @@
-add 1 $ add 2 $ add 3 4
+let add a b = a + b
+
+add (5) $ 4 + 3

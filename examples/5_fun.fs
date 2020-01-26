@@ -1,1 +1,1 @@
-(fun a b -> add a b)
+(fun a b -> a + b)

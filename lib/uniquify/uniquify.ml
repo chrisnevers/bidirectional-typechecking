@@ -6,7 +6,7 @@ let error msg = raise @@ UniquifyError ("Uniquify Error: " ^ msg)
 
 let default_env =
   let env = create 10 in
-  List.iter (fun id -> add env id 0) ["add"; "sub"; "mul"; "div"; "eq"; "show"];
+  List.iter (fun id -> add env id 0) ["show"];
   env
 
 let lookup env (id, _) =
@@ -25,6 +25,8 @@ let rec uniquify_exp env exp =
   | Var id -> Var (lookup env id)
   | Abs (id, e) -> let id' = uniquify_id env id in Abs (id', _rec e)
   | App (l, r) -> let l' = _rec l in App (l', _rec r)
+  | Binop (op, l, r) -> let l' = _rec l in Binop (op, l', _rec r)
+  | Unop (op, e) -> Unop (op, _rec e)
   | Fix (id, e) -> Fix (lookup env id, _rec e)
   | HasType (e, t) -> HasType (_rec e, t)
   | If (c, t, e) ->

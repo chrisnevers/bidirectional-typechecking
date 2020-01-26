@@ -4,4 +4,4 @@ let id a =
 
 let a = 5
 let b = id 4
-add a b
+a + b

@@ -15,23 +15,31 @@ failed = colored(" FAILED ", 'white', 'on_red')
 print(colored('Running the example programs ...', 'blue'))
 
 def test(filepath, input, expected):
-  # Compile file
-  cmd = "bidir examples/" + filepath + ".fs"
-  # Depending whether the program receives stdin, pipe input to the program
-  # cmd = run if input == None else "echo " + input + " | " + run
-  # Run the executable and capture the output
-  myCmd = os.popen(cmd).read().strip()
-  # print (myCmd)
-  # See if the actual and expected output match
-  status = passed if myCmd == expected else failed
-  # Report results to user
-  print(status + " " + filepath)
+  cmds = [
+    ("strict", "bidir examples/" + filepath + ".fs"),
+    ("lazy  ", "bidir -l examples/" + filepath + ".fs")
+  ]
+  for (mode, cmd) in cmds:
+    # Depending whether the program receives stdin, pipe input to the program
+    # cmd = run if input == None else "echo " + input + " | " + run
+
+    # Run the executable and capture the output
+    myCmd = os.popen(cmd).read().strip()
+
+    # See if the actual and expected output match
+    status = passed if myCmd == expected else failed
+
+    # Report results to user
+    print(colored(mode, 'white', 'on_blue') + status + " " + filepath)
+    if status == failed:
+      print ("Expected: " + expected + ", but received: " + myCmd)
+
 
 print(colored("Basics", "yellow", attrs=['bold']))
 test("2_int", None, "5 : Int")
 test("3_paren", None, "5 : Int")
 test("4_app", None, "5 : Int")
-test("5_fun", None, "(λ a . (λ b . ((add a) b))) : ∃'α/7 → ∃'α/7 → ∃'α/7")
+test("5_fun", None, "(λ a . (λ b . (a + b))) : ∃'α/6 → ∃'α/6 → ∃'α/6")
 test("6_add", None, "13 : Int")
 test("7_show", None, "5 : String")
 test("8_bool", None, "True : Bool")
@@ -43,4 +51,4 @@ test("13_if", None, "True : Bool")
 test("14_rec", None, "3628800 : Int")
 test("15_add_many", None, "21 : Int")
 test("16_shadow", None, "9 : Int")
-test("17_dollars", None, "10 : Int")
+test("17_dollars", None, "12 : Int")

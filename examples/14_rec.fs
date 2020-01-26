@@ -1,7 +1,7 @@
 rec factorial x =
-  if eq x 1
+  if x = 1
     1
   else
-    mul x (factorial (sub x 1))
+    x * factorial $ x - 1
 
 factorial 10

@@ -114,6 +114,32 @@ and synthesizes_to ctx exp =
     | Some t -> t, ctx
     | None -> Format.sprintf "synthesizes_to: %s not in context" (Ident.show id) |> error
     end
+  | Unop (Show, e) ->
+    let _, ctx' = synthesizes_to ctx e in
+    TyString, ctx'
+  | Binop (Add, l, r) ->
+    let l', ctx' = synthesizes_to ctx l in
+    let delta = check_against ctx' r l' in
+    let r', ctx' = synthesizes_to delta l in
+    if apply_context l' ctx' != apply_context r' ctx' then
+      "+ operates on expressions of the same type, but received: " ^ show l' ^ " : " ^ show r' |> error;
+    r', ctx'
+  | Binop (Eq, l, r) ->
+    let l', ctx' = synthesizes_to ctx l in
+    let delta = check_against ctx' r l' in
+    let r', ctx' = synthesizes_to delta l in
+    if apply_context l' ctx' != apply_context r' ctx' then
+      "= operates on expressions of the same type, but received: " ^ show l' ^ " : " ^ show r' |> error;
+    TyBool, ctx'
+  | Binop (Sub, l, r) | Binop (Mul, l, r) | Binop (Div, l, r) ->
+    let l', ctx' = synthesizes_to ctx l in
+    let delta = check_against ctx' r l' in
+    let r', ctx' = synthesizes_to delta l in
+    if apply_context l' ctx != TyInt then
+      "Expected an integer in operation" |> error;
+    if apply_context r' ctx != TyInt then
+      "Expected an integer in operation" |> error;
+    TyInt, ctx'
   | If (c, t, e) ->
     let ctx' = check_against ctx c TyBool in
     let c', ctx' = synthesizes_to ctx' c in

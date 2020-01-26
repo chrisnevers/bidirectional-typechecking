@@ -27,6 +27,10 @@ module Token = struct
     | TCOMMA
     | TREC
     | TDOLLAR
+    | TADD
+    | TSUB
+    | TMUL
+    | TDIV
     | TEOF
 
   type t_pos =
@@ -48,6 +52,10 @@ module Token = struct
   | TCOMMA -> "TCOMMA"
   | TREC -> "TREC"
   | TDOLLAR -> "TDOLLAR"
+  | TADD -> "TADD"
+  | TSUB -> "TSUB"
+  | TMUL -> "TMUL"
+  | TDIV -> "TDIV"
   | TEOF -> "TEOF"
 
   let show_t_pos = function

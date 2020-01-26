@@ -10,7 +10,7 @@
 }
 
 let id_start = ['a'-'z''_']
-let id_rest  = ['a'-'z''A'-'Z''/''*''-''_'''''0'-'9']
+let id_rest  = ['a'-'z''A'-'Z''_'''''0'-'9']
 let id_regex = id_start id_rest*
 
 let int_regex = ['0'-'9']+
@@ -25,6 +25,10 @@ rule token = parse
   | "->"      { HasPos (TARROW, pos lexbuf) }
   | "let"     { HasPos (TLET, pos lexbuf) }
   | '='       { HasPos (TEQ, pos lexbuf) }
+  | '+'       { HasPos (TADD, pos lexbuf) }
+  | '-'       { HasPos (TSUB, pos lexbuf) }
+  | '*'       { HasPos (TMUL, pos lexbuf) }
+  | '/'       { HasPos (TDIV, pos lexbuf) }
   | "if"      { HasPos (TIF, pos lexbuf) }
   | "else"    { HasPos (TELSE, pos lexbuf) }
   | "True"    { HasPos (TBOOL true, pos lexbuf) }

@@ -106,22 +106,27 @@ let rec parse_exp_0_head tokens indent =
     let e = parse_exp tokens (SameLineOrGt pos) in
     e, pos
   | _ -> Format.sprintf "Expected an int, variable, or (, but received %s (at %s)"
-
         (show tok) (show_indent indent) |> error
 
-and parse_exp_0 tokens indent =
-  let hd, l_pos = parse_exp_0_head tokens indent in
+and parse_tail l_pos tokens =
   let HasPos (tok, pos) = peek_token tokens in
   match tok with
   (* Apply *)
-  | TINT _ | TVAR _ | TBOOL _
+  | TINT _ | TVAR _ | TBOOL _ | TDOLLAR | TLPAREN
     when compare_indent pos (SameLine l_pos) ->
-    let tl = parse_exp_0 tokens (SameLine l_pos) in
-    insert hd tl
-  | TDOLLAR | TLPAREN when compare_indent pos (SameLine l_pos) ->
-    let tl = parse_exp_0 tokens (SameLine l_pos) in
-    App (hd, tl)
-  | _ -> hd
+    let tl, _ = parse_exp_0_head tokens (SameLine l_pos) in
+    tl :: parse_tail pos tokens
+  | _ -> []
+
+and make fn = function
+  | [] -> fn
+  | h ::  [] -> Exp.App (fn, h)
+  | h :: t -> App (make fn t, h)
+
+and parse_exp_0 tokens indent =
+  let hd, l_pos = parse_exp_0_head tokens indent in
+  let rst = parse_tail l_pos tokens in
+  make hd (List.rev rst), l_pos
 
 and parse_args tokens indent delim =
   let HasPos (tok, pos) = peek_token tokens in
@@ -133,6 +138,44 @@ and parse_args tokens indent delim =
   | _ -> "Error parsing function arguments. Expected identifiers." |> error
 
 and parse_exp_1 tokens indent =
+  let hd, l_pos = parse_exp_0 tokens indent in
+  let HasPos (tok, pos) = peek_token tokens in
+  match tok with
+  | TMUL when compare_indent pos (SameLine l_pos) ->
+    consume_token tokens;
+    let tl, _ = parse_exp_1 tokens (SameLine l_pos) in
+    Exp.Binop (Mul, hd, tl), pos
+  | TDIV when compare_indent pos (SameLine l_pos) ->
+    consume_token tokens;
+    let tl, _ = parse_exp_1 tokens (SameLine l_pos) in
+    Exp.Binop (Div, hd, tl), pos
+  | _ -> hd, pos
+
+and parse_exp_2 tokens indent =
+  let hd, l_pos = parse_exp_1 tokens indent in
+  let HasPos (tok, pos) = peek_token tokens in
+  match tok with
+  | TADD when compare_indent pos (SameLine l_pos) ->
+    consume_token tokens;
+    let tl, _ = parse_exp_2 tokens (SameLine l_pos) in
+    Exp.Binop (Add, hd, tl), pos
+  | TSUB when compare_indent pos (SameLine l_pos) ->
+    consume_token tokens;
+    let tl, _ = parse_exp_2 tokens (SameLine l_pos) in
+    Exp.Binop (Sub, hd, tl), pos
+  | _ -> hd, pos
+
+and parse_exp_3 tokens indent =
+  let hd, l_pos = parse_exp_2 tokens indent in
+  let HasPos (tok, pos) = peek_token tokens in
+  match tok with
+  | TEQ when compare_indent pos (SameLine l_pos) ->
+    consume_token tokens;
+    let tl = parse_exp_3 tokens (SameLine l_pos) in
+    Exp.Binop (Eq, hd, tl)
+  | _ -> hd
+
+and parse_exp_4 tokens indent =
   let HasPos (tok, pos) = peek_token tokens in
   match tok with
   | TFUN when compare_indent pos indent ->
@@ -141,9 +184,9 @@ and parse_exp_1 tokens indent =
     expect_token TARROW tokens (SameLine pos);
     let e = parse_exp tokens (SameLineOrGt pos) in
     curry_abs e args
-  | _ -> parse_exp_0 tokens indent
+  | _ -> parse_exp_3 tokens indent
 
-and parse_exp_2 tokens indent =
+and parse_exp_5 tokens indent =
   let HasPos (tok, pos) = peek_token tokens in
   match tok with
   | TIF when compare_indent pos indent ->
@@ -153,7 +196,7 @@ and parse_exp_2 tokens indent =
     expect_token TELSE tokens (NextLineEqCol pos);
     let els = parse_exp tokens (NextLineGtCol pos) in
     Exp.If (cnd, thn, els)
-  | _ -> parse_exp_1 tokens indent
+  | _ -> parse_exp_4 tokens indent
 
 and parse_exp tokens indent =
   let HasPos (tok, pos) = peek_token tokens in
@@ -179,29 +222,29 @@ and parse_exp tokens indent =
     let e = parse_exp tokens e_indent in
     let b = parse_exp tokens (NextLineEqCol pos) in
     let res = List.fold_left (fun acc id -> Exp.Abs (id, acc)) e (List.rev args) in
-    (* print_endline @@ "id : " ^ Ident.show id;
-    print_endline @@ "b  : " ^ Exp.show b;
-    print_endline @@ "res: " ^ Exp.show res;
-    print_endline @@ "new: " ^ Exp.show (Fix (id, res)); *)
     App (Abs (id, b), Fix (id, res))
-  | _ -> parse_exp_2 tokens indent
+  | _ -> parse_exp_5 tokens indent
 
 let rec curry exp =
   let open Exp in
   match exp with
   | FApp es -> curry @@ List.fold_left (fun e acc -> App (e, acc)) (List.hd es) (List.tl es)
   | Fix (id, e) -> Fix (id, curry e)
+  (* Turn show into unary operator *)
+  | App (Var ("show", 0), r) -> Unop (Show, curry r)
   | App (l, r) -> App (curry l, curry r)
   | Abs (id, e) -> Abs (id, curry e)
   | HasType (e, t) -> HasType (curry e, t)
   | If (c, t, e) -> If (curry c, curry t, curry e)
   | Let (id, e, b) -> Let (id, curry e, curry b)
+  | Binop (op, l, r) -> Binop (op, curry l, curry r)
+  | Unop (op, e) -> Unop (op, curry e)
+  | Clos (e, env) -> Clos (curry e, env)
   | Int i -> Int i
   | Bool b -> Bool b
   | String s -> String s
   | Var id -> Var id
   | Unit -> Unit
-  | Clos f -> Clos f
 
 let parse_tokens tokens =
   let e = parse_exp (ref tokens) Any in
@@ -225,23 +268,29 @@ let%test "parse let" = test "let id x = x\nid" =
   let id = Ident.ident "id" in
   let x = Ident.ident "x" in
   Exp.App (Exp.Abs (id, Exp.Var id), Abs (x, Exp.Var x))
-let%test "parse mul" =
+let%test "parse app parens" =
+  let x = Ident.ident "x" in
+  test "x (5) 3" = Exp.App (App (Var x, Int 5), Int 3)
+let%test "parse application" =
   let x = Ident.ident "x" in
   let fac = Ident.ident "factorial" in
   let mul = Ident.ident "mul" in
   let sub = Ident.ident "sub" in
   let actual = test "mul x (factorial (sub x 1))" in
   let expected = Exp.App (App (Var mul, Var x), App (Var fac, App (App (Var sub, Var x), Int 1))) in
-  (* print_endline @@ "actual  : " ^ Exp.show actual; *)
-  (* print_endline @@ "expected: " ^ Exp.show expected; *)
   actual = expected
 let%test "parse add" =
-  (* print_endline "\n\n"; *)
   let add = Exp.Var (Ident.ident "add") in
   let actual = test "(add 1 (add 2 3))" in
   let expected = Exp.App (Exp.App (add, Int 1), Exp.App (Exp.App (add, Int 2), Int 3)) in
-  (* print_endline @@ "actual  : " ^ Exp.show actual; *)
-  (* print_endline @@ "expected: " ^ Exp.show expected; *)
   actual = expected
-
-
+let%test "parse add" =
+  test "4 + 5 + 9" = Exp.Binop (Add, Int 4, Binop (Add, Int 5, Int 9))
+let%test "parse sub" =
+  test "4 + 5 - 9" = Exp.Binop (Add, Int 4, Binop (Sub, Int 5, Int 9))
+let%test "parse mul" =
+  let actual = test "5 * 3 + 2" in
+  actual = Exp.Binop (Add, Binop (Mul, Int 5, Int 3), Int 2)
+let%test "parse eq" =
+  let actual = test "2 + 2 = 2 * 2" in
+  actual = Exp.Binop (Eq, Binop (Add, Int 2, Int 2), Binop (Mul, Int 2, Int 2))

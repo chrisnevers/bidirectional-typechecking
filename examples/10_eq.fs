@@ -1,2 +1,2 @@
-let _ = eq 6 6
-eq True True
+let _ = 6 = 6
+True = True
