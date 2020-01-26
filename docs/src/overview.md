@@ -1,13 +1,27 @@
 # Overview
 
-This language has a syntax like OCaml/F#. It's type system is based off of
+This language has a syntax like OCaml/F#. It uses strict evaluation by default,
+but also supports lazy evaluation. The type system is based off of
 [Complete and Easy Bidirectional Typechecking
 for Higher-Rank Polymorphism](https://www.cl.cam.ac.uk/~nk480/bidir.pdf).
-It is indentation sensitive.
+This language is indentation sensitive.
 
-# Supports
+# Installation and Running
 
-## Expressions
+Run the following the project directory:
+
+    make
+
+The `bidir` executable will be placed in `/usr/local/bin/`.
+
+You can run a file with strict evaluation (the default), or lazy evaluation
+by specifying the `-l` flag.
+
+    bidir <filename>
+    bidir -l <filename>
+
+
+# Language
 
 ### Let
 
@@ -16,6 +30,7 @@ expression (`in`) that is aligned directly under the `let` keyword.
 
 ```OCaml
 let fiftyFour = 54
+
 fiftyFour
 ```
 
@@ -48,4 +63,23 @@ let add a b =
 let add = fun a b -> add a b
 
 let add = fun a -> fun b -> add a b
+```
+
+Recursive functions are introduced by using the `rec` keyword as follows.
+
+```OCaml
+rec factorial x =
+  if x = 1
+    1
+  else
+    x * factorial (x - 1)
+```
+
+### Haskell `$` Operator
+
+Parentheses may be avoided by using the `$` operator.
+
+```OCaml
+let add1 a = a + 1
+add1 $ 4 + 5
 ```

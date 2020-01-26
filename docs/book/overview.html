@@ -149,16 +149,27 @@
                 <div id="content" class="content">
                     <main>
                         <h1><a class="header" href="#overview" id="overview">Overview</a></h1>
-<p>This language has a syntax like OCaml/F#. It's type system is based off of
+<p>This language has a syntax like OCaml/F#. It uses strict evaluation by default,
+but also supports lazy evaluation. The type system is based off of
 <a href="https://www.cl.cam.ac.uk/%7Enk480/bidir.pdf">Complete and Easy Bidirectional Typechecking
 for Higher-Rank Polymorphism</a>.
-It is indentation sensitive.</p>
-<h1><a class="header" href="#supports" id="supports">Supports</a></h1>
-<h2><a class="header" href="#expressions" id="expressions">Expressions</a></h2>
+This language is indentation sensitive.</p>
+<h1><a class="header" href="#installation-and-running" id="installation-and-running">Installation and Running</a></h1>
+<p>Run the following the project directory:</p>
+<pre><code>make
+</code></pre>
+<p>The <code>bidir</code> executable will be placed in <code>/usr/local/bin/</code>.</p>
+<p>You can run a file with strict evaluation (the default), or lazy evaluation
+by specifying the <code>-l</code> flag.</p>
+<pre><code>bidir &lt;filename&gt;
+bidir -l &lt;filename&gt;
+</code></pre>
+<h1><a class="header" href="#language" id="language">Language</a></h1>
 <h3><a class="header" href="#let" id="let">Let</a></h3>
 <p><code>let</code> expressions expect an expression on the right hand side and a body
 expression (<code>in</code>) that is aligned directly under the <code>let</code> keyword.</p>
 <pre><code class="language-OCaml">let fiftyFour = 54
+
 fiftyFour
 </code></pre>
 <h3><a class="header" href="#if-else" id="if-else">If Else</a></h3>
@@ -183,6 +194,18 @@ a <code>let</code> assignment.</p>
 let add = fun a b -&gt; add a b
 
 let add = fun a -&gt; fun b -&gt; add a b
+</code></pre>
+<p>Recursive functions are introduced by using the <code>rec</code> keyword as follows.</p>
+<pre><code class="language-OCaml">rec factorial x =
+  if x = 1
+    1
+  else
+    x * factorial (x - 1)
+</code></pre>
+<h3><a class="header" href="#haskell--operator" id="haskell--operator">Haskell <code>$</code> Operator</a></h3>
+<p>Parentheses may be avoided by using the <code>$</code> operator.</p>
+<pre><code class="language-OCaml">let add1 a = a + 1
+add1 $ 4 + 5
 </code></pre>
 
                     </main>
