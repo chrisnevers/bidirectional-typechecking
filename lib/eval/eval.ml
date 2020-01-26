@@ -14,6 +14,13 @@ let default_env =
   Hashtbl.add env (Ident.ident "eq") std_eq;
   env
 
+let show_env env =
+  print_endline "ENV start";
+  Hashtbl.iter (fun k v ->
+    Format.sprintf "%s = %s;" (Ident.show k) (Exp.show v) |> print_endline
+  ) env;
+  print_endline "ENV end"
+
 let rec eval_exp env exp =
   match exp with
   | Exp.Int i -> Exp.Int i
@@ -24,7 +31,7 @@ let rec eval_exp env exp =
   | Exp.App (l, r) ->
     let l' = eval_exp env l in
     let r' = eval_exp env r in
-    eval_fun env l' r'
+    eval_fun (Hashtbl.copy env) l' r'
   | Exp.If (c, t, e) ->
     begin
       match eval_exp env c with
@@ -32,14 +39,16 @@ let rec eval_exp env exp =
       | Bool false -> eval_exp env e
       | _ -> "Fatal: eval if" |> error
     end
+  | Exp.Fix (_, e) -> e
   | _ -> "Unknown exp: " ^ Exp.show exp |> error
 
 and eval_fun env fn arg =
+  show_env env;
   match fn with
   | Exp.Abs (id, e) ->
-    let env' = Hashtbl.copy env in
-    Hashtbl.add env' id arg;
-    eval_exp env' e
+    (* let env' = Hashtbl.copy env in *)
+    Hashtbl.add env id arg;
+    eval_exp env e
   | Exp.Var id ->
     begin match Hashtbl.find_opt env id with
     | Some (Clos f) -> f arg

@@ -9,6 +9,7 @@ install:
 
 test: build
 	@dune runtest
+	@python3 unitTest.py
 
 doc: build
 	@opam install odoc

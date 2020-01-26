@@ -72,6 +72,10 @@ let expect_token expected tokens indent =
     (show actual_tok) (show_indent indent) (Pos.show pos) |> error;
   ()
 
+let is_app = function
+  | Exp.App _ -> true
+  | _ -> false
+
 let rec curry_abs e = function
   | [] -> e
   | id :: t -> Exp.Abs (id, curry_abs e t)
@@ -81,6 +85,10 @@ let parse_id tokens indent =
   match tok with
   | TVAR id when compare_indent pos indent -> Ident.ident id
   | _ -> Format.sprintf "Expected id, but received %s" (show tok) |> error
+
+let rec insert e = function
+  | Exp.App (l, r) -> Exp.App (insert e l, r)
+  | l -> Exp.App (e, l)
 
 let rec parse_exp_0_head tokens indent =
   let next = next_token tokens in
@@ -103,13 +111,13 @@ and parse_exp_0 tokens indent =
   let HasPos (tok, pos) = peek_token tokens in
   match tok with
   (* Apply *)
-  | TINT _ | TVAR _ | TLPAREN
+  | TINT _ | TVAR _
   | TBOOL _ when compare_indent pos (SameLine l_pos) ->
     let tl = parse_exp_0 tokens (SameLine l_pos) in
-    begin match tl with
-    | Exp.App (l, r) -> FApp (hd :: l :: r :: [])
-    | _ -> Exp.App (hd, tl)
-    end
+    insert hd tl
+  | TLPAREN when compare_indent pos (SameLine l_pos) ->
+    let tl = parse_exp_0 tokens (SameLine l_pos) in
+    App (hd, tl)
   | _ -> hd
 
 and parse_args tokens indent delim =
@@ -156,15 +164,30 @@ and parse_exp tokens indent =
     let e_indent = if List.length ids > 1 then (SameLineOrGt pos) else (SameLine pos) in
     let e = parse_exp tokens e_indent in
     let b = parse_exp tokens (NextLineEqCol pos) in
-    let res = List.fold_left (fun acc id -> Exp.Abs (id, acc)) e args in
-    (* Exp.Let (id, res, b) *)
+    let res = List.fold_left (fun acc id -> Exp.Abs (id, acc)) e (List.rev args) in
     App (Abs (id, b), res)
+  | TREC when compare_indent pos indent ->
+    consume_token tokens;
+    let ids = parse_args tokens (SameLine pos) TEQ in
+    expect_token TEQ tokens (SameLine pos);
+    let id = List.hd ids in
+    let args = List.tl ids in
+    let e_indent = if List.length ids > 1 then (SameLineOrGt pos) else (SameLine pos) in
+    let e = parse_exp tokens e_indent in
+    let b = parse_exp tokens (NextLineEqCol pos) in
+    let res = List.fold_left (fun acc id -> Exp.Abs (id, acc)) e (List.rev args) in
+    (* print_endline @@ "id : " ^ Ident.show id;
+    print_endline @@ "b  : " ^ Exp.show b;
+    print_endline @@ "res: " ^ Exp.show res;
+    print_endline @@ "new: " ^ Exp.show (Fix (id, res)); *)
+    App (Abs (id, b), Fix (id, res))
   | _ -> parse_exp_2 tokens indent
 
 let rec curry exp =
   let open Exp in
   match exp with
   | FApp es -> curry @@ List.fold_left (fun e acc -> App (e, acc)) (List.hd es) (List.tl es)
+  | Fix (id, e) -> Fix (id, curry e)
   | App (l, r) -> App (curry l, curry r)
   | Abs (id, e) -> Abs (id, curry e)
   | HasType (e, t) -> HasType (curry e, t)
@@ -178,7 +201,9 @@ let rec curry exp =
   | Clos f -> Clos f
 
 let parse_tokens tokens =
-  curry @@ parse_exp (ref tokens) Any
+  let e = parse_exp (ref tokens) Any in
+  (* print_endline @@ "parse: " ^ Exp.show e; *)
+  curry e
 
 open Gensym
 
@@ -197,3 +222,23 @@ let%test "parse let" = test "let id x = x\nid" =
   let id = Ident.ident "id" in
   let x = Ident.ident "x" in
   Exp.App (Exp.Abs (id, Exp.Var id), Abs (x, Exp.Var x))
+let%test "parse mul" =
+  let x = Ident.ident "x" in
+  let fac = Ident.ident "factorial" in
+  let mul = Ident.ident "mul" in
+  let sub = Ident.ident "sub" in
+  let actual = test "mul x (factorial (sub x 1))" in
+  let expected = Exp.App (App (Var mul, Var x), App (Var fac, App (App (Var sub, Var x), Int 1))) in
+  (* print_endline @@ "actual  : " ^ Exp.show actual; *)
+  (* print_endline @@ "expected: " ^ Exp.show expected; *)
+  actual = expected
+let%test "parse add" =
+  (* print_endline "\n\n"; *)
+  let add = Exp.Var (Ident.ident "add") in
+  let actual = test "(add 1 (add 2 3))" in
+  let expected = Exp.App (Exp.App (add, Int 1), Exp.App (Exp.App (add, Int 2), Int 3)) in
+  (* print_endline @@ "actual  : " ^ Exp.show actual; *)
+  (* print_endline @@ "expected: " ^ Exp.show expected; *)
+  actual = expected
+
+

@@ -21,6 +21,7 @@ rule token = parse
   | '('       { HasPos (TLPAREN, pos lexbuf) }
   | ')'       { HasPos (TRPAREN, pos lexbuf) }
   | "fun"     { HasPos (TFUN, pos lexbuf) }
+  | "rec"     { HasPos (TREC, pos lexbuf) }
   | "->"      { HasPos (TARROW, pos lexbuf) }
   | "let"     { HasPos (TLET, pos lexbuf) }
   | '='       { HasPos (TEQ, pos lexbuf) }
@@ -28,6 +29,7 @@ rule token = parse
   | "else"    { HasPos (TELSE, pos lexbuf) }
   | "True"    { HasPos (TBOOL true, pos lexbuf) }
   | "False"   { HasPos (TBOOL false, pos lexbuf) }
+  | ","       { HasPos (TCOMMA, pos lexbuf) }
   | id_regex as id
               { HasPos (TVAR id, pos lexbuf) }
   | int_regex as i

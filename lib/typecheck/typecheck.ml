@@ -103,6 +103,7 @@ and subtype ctx a b =
 
 and synthesizes_to ctx exp =
   let open Type in
+  (* print_endline @@ Context.show ctx ^ "\n"; *)
   match exp with
   | Unit -> TyUnit, ctx
   | Int _ -> TyInt, ctx
@@ -126,6 +127,14 @@ and synthesizes_to ctx exp =
   | HasType (e, t) when is_well_formed ctx t ->
     let delta = check_against ctx e t in
     t, delta
+  | Fix (id, e) ->
+    let alpha = Ident.gen "α" in
+    let beta  = Ident.gen "β" in
+    let typed_var = Context.TypedVar (id, TyExist alpha) in
+    let gamma = Context.ExistDecl alpha :: Context.ExistDecl beta ::
+                typed_var :: ctx in
+    let delta = check_against gamma e (TyExist beta) in
+    TyExist alpha, Context.drop typed_var delta
   | Abs (id, e) ->
     let alpha = Ident.gen "α" in
     let beta  = Ident.gen "β" in
@@ -160,7 +169,7 @@ and application_synthesizes_to ctx ty exp =
     let sub_a = substitution t id (TyExist alpha) in
     application_synthesizes_to gamma sub_a exp
   | TyFun (l, r) -> r, check_against ctx exp l
-  | _ -> "application_synthesizes_to: fail" |> error
+  | _ -> "application_synthesizes_to: fail: " ^ Type.show ty |> error
 
 and instantiate_l ctx alpha ty =
   let open Context in

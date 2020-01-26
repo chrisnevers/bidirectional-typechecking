@@ -25,6 +25,7 @@ let work file = try
   (* print_endline @@ "Parsed: " ^ (Exp.show ast |> Chalk.light_green |> Chalk.bold); *)
   let ty = synth ast in
   let res = eval ast in
+
   print_endline @@ Exp.show res ^ " : " ^ (Type.show ty)
   with
   | TypecheckError msg -> print_endline (msg |> Chalk.bold |> Chalk.red)

@@ -21,6 +21,7 @@ def test(filepath, input, expected):
   # cmd = run if input == None else "echo " + input + " | " + run
   # Run the executable and capture the output
   myCmd = os.popen(cmd).read().strip()
+  # print (myCmd)
   # See if the actual and expected output match
   status = passed if myCmd == expected else failed
   # Report results to user
@@ -38,3 +39,4 @@ test("9_let", None, "(λ b . b) : ∃'α/14 → ∃'α/14")
 test("10_eq", None, "True : Bool")
 test("11_nested", None, "4 : Int")
 test("12_nested_parens", None, "6 : Int")
+test("13_if", None, "True : Bool")

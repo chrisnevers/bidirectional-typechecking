@@ -17,6 +17,7 @@ module Exp = struct
   | If of t * t * t
   | Let of Ident.t * t * t
   | Clos of (t -> t)
+  | Fix of Ident.t * t
 
   let rec show = function
   | Var id -> Ident.show id
@@ -30,8 +31,9 @@ module Exp = struct
   | FApp es -> Format.sprintf "(%s)" (String.concat ", " (List.map show es))
   | HasType (e, ty) -> Format.sprintf "%s : %s" (show e) (Type.show ty)
   | If (cnd, thn, els) -> Format.sprintf "if %s then %s else %s" (show cnd) (show thn) (show els)
-  | Let _ -> "let"
+  | Let (id, e, b) -> Format.sprintf "let %s = %s in %s" (Ident.show id) (show e) (show b)
   | Clos _ -> "<closure>"
+  | Fix (id, e) -> Format.sprintf "fix %s . %s" (Ident.show id) (show e)
 
 end
 
