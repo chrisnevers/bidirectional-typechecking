@@ -23,39 +23,38 @@ let show_env env =
 
 let rec eval_exp env exp =
   match exp with
-  | Exp.Int i -> Exp.Int i
-  | Exp.Bool b -> Exp.Bool b
-  | Exp.String s -> Exp.String s
-  | Exp.Abs (id, e) -> Exp.Abs (id, e)
-  | Exp.Var id when Hashtbl.mem env id -> Hashtbl.find env id
+  | Exp.Int i -> Exp.Int i, env
+  | Exp.Bool b -> Exp.Bool b, env
+  | Exp.String s -> Exp.String s, env
+  | Exp.Abs (id, e) -> Exp.Abs (id, e), env
+  | Exp.Var id when Hashtbl.mem env id -> Hashtbl.find env id, env
   | Exp.App (l, r) ->
-    let l' = eval_exp env l in
-    let r' = eval_exp env r in
-    eval_fun (Hashtbl.copy env) l' r'
+    let l', env' = eval_exp env l in
+    let r', env' = eval_exp env' r in
+    eval_fun env' l' r'
   | Exp.If (c, t, e) ->
     begin
       match eval_exp env c with
-      | Bool true -> eval_exp env t
-      | Bool false -> eval_exp env e
+      | Bool true, env' -> eval_exp env' t
+      | Bool false, env' -> eval_exp env' e
       | _ -> "Fatal: eval if" |> error
     end
-  | Exp.Fix (_, e) -> e
+  | Exp.Fix (_, e) -> e, env
   | _ -> "Unknown exp: " ^ Exp.show exp |> error
 
 and eval_fun env fn arg =
-  show_env env;
   match fn with
   | Exp.Abs (id, e) ->
-    (* let env' = Hashtbl.copy env in *)
-    Hashtbl.add env id arg;
-    eval_exp env e
+    let env' = Hashtbl.copy env in
+    Hashtbl.add env' id arg;
+    eval_exp env' e
   | Exp.Var id ->
     begin match Hashtbl.find_opt env id with
-    | Some (Clos f) -> f arg
+    | Some (Clos f) -> f arg, env
     | _ -> error ""
     end
-  | Exp.Clos f -> f arg
+  | Exp.Clos f -> f arg, env
   | _ -> "Unknown expression while applying: " ^ Exp.show fn |> error
 
 let eval exp =
-  eval_exp default_env exp
+  fst @@ eval_exp default_env exp
